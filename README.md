@@ -11,7 +11,7 @@ StudentIO is a production-ready meta-learning system for adaptive education that
 
 ## Mathematical Foundation
 
-### Learning as a Dynamical System
+### Treating *Learning* as a Dynamical System
 
 We model the student as a latent dynamical process governed by stochastic state transitions and noisy observations:
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Activity, Zap, AlertTriangle, Loader2 } from 'lucide-react';
 
@@ -26,42 +26,45 @@ interface TelemetryResponse {
 // Components
 // ============================================================================
 
-const StudentCard = ({ student }: { student: StudentState }) => (
+const StudentCard = forwardRef<HTMLDivElement, { student: StudentState }>(({ student }, ref) => (
   <motion.div
+    ref={ref}
     layout
-    className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl hover:border-indigo-500/30 transition-colors"
+    className="bg-white/10 border border-white/20 rounded-[2.5rem] p-8 backdrop-blur-xl hover:bg-white/15 hover:border-indigo-500/50 transition-all duration-300 group"
   >
     <div className="flex justify-between items-start mb-6">
-      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Student Instance {student.id}</span>
-      <span className="text-[10px] font-mono text-indigo-400">t+{student.timestep}</span>
+      <span className="text-xs font-bold text-slate-300 uppercase tracking-wider group-hover:text-white transition-colors">Student Instance {student.id}</span>
+      <span className="text-xs font-mono text-indigo-400 group-hover:text-indigo-300 transition-colors">t+{student.timestep}</span>
     </div>
 
-    <div className="grid grid-cols-10 gap-1.5 mb-6">
+    <div className="grid grid-cols-10 gap-2 mb-6">
       {student.belief.map((val, i) => (
         <div
           key={`${student.id}-belief-${i}`}
           className="w-full aspect-square rounded-[2px] transition-all duration-700"
           style={{
-            backgroundColor: `rgba(99, 102, 241, ${val})`,
-            // Fallback for variance if it's undefined or partial, though types say required
-            boxShadow: `0 0 ${(student.variance[i] || 0) * 15}px rgba(99, 102, 241, 0.4)`
+            backgroundColor: `rgba(99, 102, 241, ${val})`, // Indigo base
+            opacity: Math.max(0.2, val), // Ensure at least some visibility
+            boxShadow: `0 0 ${(student.variance[i] || 0) * 10}px rgba(99, 102, 241, 0.5)`
           }}
           title={`Dim ${i}: ${val.toFixed(2)} (σ²: ${(student.variance[i] || 0).toFixed(2)})`}
         />
       ))}
     </div>
 
-    <div className="pt-6 border-t border-white/5 flex justify-between items-center">
+    <div className="pt-6 border-t border-white/10 flex justify-between items-center">
       <div className="flex items-center gap-2">
-        <Activity size={16} className="text-slate-600" />
-        <span className="text-[10px] text-slate-400 font-bold uppercase">RNN State Inference</span>
+        <Activity size={16} className="text-indigo-400" />
+        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">RNN State Inference</span>
       </div>
-      <div className="text-[10px] text-slate-600 font-mono">
-        Active Dimensions: {student.belief.filter(b => b > 0.1).length}
+      <div className="text-[10px] text-slate-400 font-mono">
+        Active Dimensions: <span className="text-indigo-300">{student.belief.filter(b => b > 0.1).length}</span>
       </div>
     </div>
   </motion.div>
-);
+));
+
+StudentCard.displayName = "StudentCard";
 
 export default function StudentIODashboard() {
   const [telemetry, setTelemetry] = useState<StudentState[]>([]);
@@ -115,24 +118,24 @@ export default function StudentIODashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#060609] text-slate-200 p-10 font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-slate-950 text-slate-200 p-10 font-sans selection:bg-indigo-500/30">
       <header className="flex justify-between items-center mb-16 relative z-10">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-500/40">
             <Brain size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tighter italic leading-none">
-              STUDENT<span className="text-indigo-500">IO</span>
+            <h1 className="text-2xl font-black tracking-tighter italic leading-none text-white">
+              STUDENT<span className="text-indigo-400">IO</span>
             </h1>
-            <div className="text-[10px] font-bold tracking-widest text-slate-500 uppercase mt-1">
+            <div className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mt-1">
               Neural Telemetry Dashboard
             </div>
           </div>
         </div>
 
         <div className={`
-          px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest flex items-center gap-2 border transition-colors
+          px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest flex items-center gap-2 border transition-colors backdrop-blur-md
           ${error
             ? 'bg-red-500/10 border-red-500/20 text-red-400'
             : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
@@ -154,8 +157,8 @@ export default function StudentIODashboard() {
 
       {/* Main Content Area */}
       {isLoading && !telemetry.length && !error ? (
-        <div className="flex h-[50vh] w-full justify-center items-center flex-col gap-4 text-slate-600">
-          <Loader2 className="animate-spin" size={32} />
+        <div className="flex h-[50vh] w-full justify-center items-center flex-col gap-4 text-slate-500">
+          <Loader2 className="animate-spin text-indigo-500" size={32} />
           <span className="text-xs uppercase tracking-widest font-bold">Establishing Uplink...</span>
         </div>
       ) : (
@@ -168,9 +171,9 @@ export default function StudentIODashboard() {
 
           {/* Empty State / Error Fallback Display */}
           {telemetry.length === 0 && !isLoading && (
-            <div className="col-span-full py-20 text-center border border-dashed border-slate-800 rounded-3xl">
-              <div className="text-slate-500 font-mono text-sm">No Active Student Instances Found</div>
-              {error && <div className="text-red-900/50 text-xs mt-2 font-mono">{error}</div>}
+            <div className="col-span-full py-20 text-center border border-dashed border-slate-800 rounded-3xl bg-white/5">
+              <div className="text-slate-400 font-mono text-sm">No Active Student Instances Found</div>
+              {error && <div className="text-red-400 text-xs mt-2 font-mono">{error}</div>}
             </div>
           )}
         </div>
@@ -181,7 +184,7 @@ export default function StudentIODashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-8 right-8 max-w-sm bg-red-950/90 border border-red-500/30 p-4 rounded-xl backdrop-blur text-red-200 text-xs font-mono shadow-2xl"
+          className="fixed bottom-8 right-8 max-w-sm bg-red-950/90 border border-red-500/30 p-4 rounded-xl backdrop-blur text-red-100 text-xs font-mono shadow-2xl"
         >
           <div className="font-bold mb-1 flex items-center gap-2">
             <Loader2 size={12} className="animate-spin" />

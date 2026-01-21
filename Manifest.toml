@@ -3,7 +3,11 @@
 julia_version = "1.12.4"
 manifest_format = "2.0"
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 project_hash = "ebf45c42d869907831a35b03ad0a1cb7a7641245"
+=======
+project_hash = "00fdd48900ab35a69ed1e3664f5cc0e9a2c98af3"
+>>>>>>> Stashed changes
 =======
 project_hash = "00fdd48900ab35a69ed1e3664f5cc0e9a2c98af3"
 >>>>>>> Stashed changes
@@ -1249,7 +1253,11 @@ version = "2.6.2"
 
 [[deps.StudentIO]]
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 deps = ["CUDA", "ChainRulesCore", "Distributions", "Flux", "HTTP", "JSON3", "LinearAlgebra", "Oxygen", "Random", "Statistics", "Zygote"]
+=======
+deps = ["CUDA", "ChainRulesCore", "Distributions", "Flux", "HTTP", "JSON3", "LinearAlgebra", "Oxygen", "Printf", "Random", "Statistics", "Zygote"]
+>>>>>>> Stashed changes
 =======
 deps = ["CUDA", "ChainRulesCore", "Distributions", "Flux", "HTTP", "JSON3", "LinearAlgebra", "Oxygen", "Printf", "Random", "Statistics", "Zygote"]
 >>>>>>> Stashed changes

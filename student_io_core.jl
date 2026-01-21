@@ -1,4 +1,5 @@
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 using Oxygen, HTTP, JSON3, Dates
 using Flux
 
@@ -44,6 +45,8 @@ function get_or_create_session(student_id::String)
         end
         return sessions[student_id]
 =======
+=======
+>>>>>>> Stashed changes
 using Oxygen, HTTP, JSON3, Flux, Random, Statistics, Dates
 
 # ============================================================================
@@ -103,6 +106,19 @@ function get_heuristic_response_text(text::String, sentiment_idx::Int)
         return "A vector is a geometric object that has magnitude and direction. In my core, it represents a state of activation."
     elseif occursin("help", lower_text)
         return "I can assist you. Please state your query."
+<<<<<<< Updated upstream
+=======
+    end
+
+    # Fallback based on model sentiment
+    # Index 1: Negative, 2: Neutral, 3: Positive
+    if sentiment_idx == 1
+        return "I detect uncertainty. Could you rephrase that?"
+    elseif sentiment_idx == 3
+        return "Input processed successfully. I am aligned with this concept."
+    else
+        return "Processing input. State updated."
+>>>>>>> Stashed changes
     end
 
     # Fallback based on model sentiment
@@ -159,6 +175,7 @@ end
 # API Endpoints
 # ============================================================================
 
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 @post "/api/ask" function (req::HTTP.Request)
     try
@@ -333,6 +350,58 @@ end
         data = JSON3.read(String(req.body))
         user_text = data.text
 
+=======
+@get "/api/telemetry" function (req::HTTP.Request)
+    # Extract hidden state from the LSTM layer (layer 2 in the Chain)
+    # The state structure depends on the Flux version, but typically for LSTM
+    # it's a tuple (h, c). We want 'h' (the hidden output).
+
+    # Safe access to recurrent state
+    # LSTM state in Flux.state(chain) is usually named similarly to the layer
+    # We will grab the raw hidden state vector.
+
+    # Note: In recent Flux, state is a NamedTuple. 
+    # We need to extract the hidden matrix.
+    # For a simple demo, we will re-run the model on 'noise' if idle to get a live look,
+    # OR better, just expose the current 'h' from the global state if accessible.
+
+    # Accessing the specific LSTM state (layer 2)
+    # core_state[2] should be the LSTM state -> (h, c)
+    lstm_state = core_state[2]
+
+    # Depending on Flux version, this might be a tuple or NamedTuple.
+    # We'll convert to vector safely.
+    hidden_vec = Float32[]
+
+    try
+        # Common structure: (h, c)
+        if isa(lstm_state, Tuple)
+            hidden_vec = vec(lstm_state[1]) # h
+        elseif hasproperty(lstm_state, :h) # NamedTuple or struct
+            hidden_vec = vec(lstm_state.h)
+        else
+            # Fallback: just return zeros if structure is unexpected
+            hidden_vec = zeros(Float32, HIDDEN_DIM)
+        end
+    catch e
+        println("Telemetry Error: $e")
+        hidden_vec = zeros(Float32, HIDDEN_DIM)
+    end
+
+    return HTTP.Response(200, ["Access-Control-Allow-Origin" => "*", "Content-Type" => "application/json"],
+        JSON3.write(Dict(
+            "timestamp" => Dates.now(),
+            "activations" => hidden_vec
+        )))
+end
+
+@post "/api/chat" function (req::HTTP.Request)
+    try
+        global core_state
+        data = JSON3.read(String(req.body))
+        user_text = data.text
+
+>>>>>>> Stashed changes
         # 1. Embed Input
         x = text_to_embedding(user_text, INPUT_DIM)
 
@@ -366,5 +435,9 @@ end
 end
 
 println("StudentIO Single Core (Flux) Server running on port 8080...")
+<<<<<<< Updated upstream
+serve(port=8080)
+>>>>>>> Stashed changes
+=======
 serve(port=8080)
 >>>>>>> Stashed changes

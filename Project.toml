@@ -13,6 +13,10 @@ JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Oxygen = "df9a0d86-3283-4920-82dc-4555fc0d1d8b"
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+>>>>>>> Stashed changes
 =======
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 >>>>>>> Stashed changes
@@ -28,6 +32,10 @@ HTTP = "1.10.19"
 JSON3 = "1.14.3"
 Oxygen = "1.10.0"
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+Printf = "1.11.0"
+>>>>>>> Stashed changes
 =======
 Printf = "1.11.0"
 >>>>>>> Stashed changes

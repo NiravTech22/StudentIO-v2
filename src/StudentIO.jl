@@ -52,7 +52,7 @@ module StudentIO
 
 using Flux
 using Flux: Chain, Dense, GRU, softmax, sigmoid, relu
-using CUDA
+# using CUDA
 using Zygote
 using Distributions
 using LinearAlgebra
@@ -60,30 +60,31 @@ using Random
 using Statistics
 
 # Core types and abstractions
-include("core/types.jl")
+include(joinpath(@__DIR__, "core/types.jl"))
 
 # Core components
-include("core/latent_state.jl")
-include("core/observation_model.jl")
-include("core/belief_filter.jl")
-include("core/policy.jl")
-include("core/reward.jl")
+# Core components
+include(joinpath(@__DIR__, "core/latent_state.jl"))
+include(joinpath(@__DIR__, "core/observation_model.jl"))
+include(joinpath(@__DIR__, "core/belief_filter.jl"))
+include(joinpath(@__DIR__, "core/policy.jl"))
+include(joinpath(@__DIR__, "core/reward.jl"))
 
 # Meta-learning framework
-include("meta/task_distribution.jl")
-include("meta/meta_learning.jl")
+include(joinpath(@__DIR__, "meta/task_distribution.jl"))
+include(joinpath(@__DIR__, "meta/meta_learning.jl"))
 
 # Training infrastructure
-include("training/simulate_student.jl")
-include("training/train_loop.jl")
+include(joinpath(@__DIR__, "training/simulate_student.jl"))
+include(joinpath(@__DIR__, "training/train_loop.jl"))
 
 # Evaluation and diagnostics
-include("evaluation/diagnostics.jl")
-include("evaluation/ablations.jl")
+include(joinpath(@__DIR__, "evaluation/diagnostics.jl"))
+include(joinpath(@__DIR__, "evaluation/ablations.jl"))
 
 # CUDA acceleration
-include("../cuda/kernels.jl")
-include("../cuda/acceleration.jl")
+# include("../cuda/kernels.jl")
+# include("../cuda/acceleration.jl")
 
 # ============================================================================
 # Public API Exports
@@ -164,10 +165,10 @@ end
 # Get all trainable parameters
 function Flux.trainable(model::StudentIOModel)
     (
-        transition = Flux.trainable(model.transition),
-        observation = Flux.trainable(model.observation),
-        filter = Flux.trainable(model.filter),
-        policy = Flux.trainable(model.policy)
+        transition=Flux.trainable(model.transition),
+        observation=Flux.trainable(model.observation),
+        filter=Flux.trainable(model.filter),
+        policy=Flux.trainable(model.policy)
     )
 end
 
@@ -190,33 +191,33 @@ Create a StudentIOModel with sensible defaults.
 - `StudentIOModel{T}`: Fully initialized model
 """
 function create_default_model(;
-    state_dim::Int = 64,
-    mastery_dim::Int = 40,
-    misconception_dim::Int = 16,
-    abstraction_dim::Int = 8,
-    belief_dim::Int = 128,
-    action_dim::Int = 16,
-    observation_dim::Int = 8,
-    T::Type = Float32
+    state_dim::Int=64,
+    mastery_dim::Int=40,
+    misconception_dim::Int=16,
+    abstraction_dim::Int=8,
+    belief_dim::Int=128,
+    action_dim::Int=16,
+    observation_dim::Int=8,
+    T::Type=Float32
 )
     @assert mastery_dim + misconception_dim + abstraction_dim == state_dim "State dimensions must sum to state_dim"
-    
+
     config = StudentStateConfig(
-        state_dim = state_dim,
-        mastery_dim = mastery_dim,
-        misconception_dim = misconception_dim,
-        abstraction_dim = abstraction_dim,
-        action_dim = action_dim,
-        observation_dim = observation_dim,
-        belief_dim = belief_dim
+        state_dim=state_dim,
+        mastery_dim=mastery_dim,
+        misconception_dim=misconception_dim,
+        abstraction_dim=abstraction_dim,
+        action_dim=action_dim,
+        observation_dim=observation_dim,
+        belief_dim=belief_dim
     )
-    
+
     transition = TransitionModel{T}(config)
     observation = ObservationModel{T}(config)
     filter = BeliefFilter{T}(config)
     policy = PolicyNetwork{T}(config)
     reward = RewardFunction{T}()
-    
+
     return StudentIOModel{T}(config, transition, observation, filter, policy, reward)
 end
 
@@ -234,7 +235,7 @@ mutable struct StudentSession{T<:AbstractFloat}
     model::StudentIOModel{T}
     belief_state::Vector{T}
     uncertainty::T
-    last_action::Union{Nothing, NamedTuple}
+    last_action::Union{Nothing,NamedTuple}
     step_count::Int
     history::Vector{NamedTuple}
 end
@@ -271,17 +272,17 @@ Process a new observation and return the next instructional action.
 """
 function step!(session::StudentSession, observation)
     model = session.model
-    
+
     # Encode observation
     obs_vec = encode_observation(model.observation, observation)
-    
+
     # Encode last action (if any)
     action_vec = if isnothing(session.last_action)
         zeros(eltype(session.belief_state), model.config.action_dim)
     else
         encode_action(model.policy, session.last_action)
     end
-    
+
     # Update belief state
     session.belief_state, session.uncertainty = update_belief(
         model.filter,
@@ -289,24 +290,24 @@ function step!(session::StudentSession, observation)
         obs_vec,
         action_vec
     )
-    
+
     # Select action
     action, log_prob = select_action(model.policy, session.belief_state)
-    
+
     # Generate rationale for interpretability
     rationale = explain_action(model.policy, session.belief_state, action)
-    
+
     # Update session state
     session.last_action = action
     session.step_count += 1
     push!(session.history, (
-        step = session.step_count,
-        observation = observation,
-        action = action,
-        uncertainty = session.uncertainty,
-        rationale = rationale
+        step=session.step_count,
+        observation=observation,
+        action=action,
+        uncertainty=session.uncertainty,
+        rationale=rationale
     ))
-    
+
     return action
 end
 
@@ -330,7 +331,7 @@ end
 Retrieve current belief state and uncertainty estimate.
 """
 function get_belief_state(session::StudentSession)
-    return (belief = copy(session.belief_state), uncertainty = session.uncertainty)
+    return (belief=copy(session.belief_state), uncertainty=session.uncertainty)
 end
 
 end # module StudentIO

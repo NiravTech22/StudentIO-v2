@@ -1,14 +1,21 @@
 name = "StudentIO"
 uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-authors = ["StudentIO Team"]
 version = "0.1.0"
+authors = ["StudentIO Team"]
 
 [deps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Oxygen = "df9a0d86-3283-4920-82dc-4555fc0d1d8b"
+<<<<<<< Updated upstream
+=======
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+>>>>>>> Stashed changes
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
@@ -17,6 +24,13 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 CUDA = "5"
 Distributions = "0.25"
 Flux = "0.14"
+HTTP = "1.10.19"
+JSON3 = "1.14.3"
+Oxygen = "1.10.0"
+<<<<<<< Updated upstream
+=======
+Printf = "1.11.0"
+>>>>>>> Stashed changes
 Zygote = "0.6"
 julia = "1.9"
 

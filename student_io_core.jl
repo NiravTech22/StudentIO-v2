@@ -1,151 +1,370 @@
-using Oxygen, HTTP, JSON3, Libdl, LinearAlgebra, CUDA, Random
+<<<<<<< Updated upstream
+using Oxygen, HTTP, JSON3, Dates
+using Flux
 
-# ============================================================================
-# Types
-# ============================================================================
-
-# Memory mapped structure (Matches C definition)
-struct StudentState_C
-    knowledge::NTuple{50, Float32}
-    belief_mean::NTuple{50, Float32}
-    belief_var::NTuple{50, Float32}
-    hidden::NTuple{128, Float32}
-    timestep::Int32
-    learning_rate::Float32
-    forgetting_rate::Float32
-end
-
-# Mutable struct for Julia-side simulation (Fallback)
-mutable struct StudentState_Sim
-    id::Int
-    belief_mean::Vector{Float32}
-    belief_var::Vector{Float32}
-    timestep::Int
-    
-    function StudentState_Sim(id::Int)
-        new(id, rand(Float32, 50), ones(Float32, 50) .* 0.5f0, 0)
-    end
-end
-
-# ============================================================================
-# Native Library Loading
-# ============================================================================
-
-const LIB_NAME = Sys.iswindows() ? "student_io_core.dll" : "libstudentio.so"
-const LIB_PATH = joinpath(@__DIR__, LIB_NAME)
-
-global use_native = false
-global run_step_ptr = C_NULL
-global d_states = nothing
-global d_obs = nothing
-global d_actions = nothing
-global BATCH_SIZE = 5
-
+# Load the core module
 try
-    if isfile(LIB_PATH)
-        println("Found native library: $LIB_PATH")
-        student_lib = dlopen(LIB_PATH)
-        global run_step_ptr = dlsym(student_lib, :runTimestep)
-        
-        # Initialize GPU buffers if library loaded successfully
-        global BATCH_SIZE = 32
-        global d_states = CUDA.zeros(StudentState_C, BATCH_SIZE)
-        global d_obs = CUDA.zeros(Float32, BATCH_SIZE * 24)
-        global d_actions = CUDA.zeros(Float32, BATCH_SIZE * 13)
-        
-        println("CUDA Backend Initialized Successfully.")
-        global use_native = true
-    else
-        println("Native library not found at $LIB_PATH. Switching to SIMULATION MODE.")
-    end
+    println("Loading StudentIO from: ", joinpath(@__DIR__, "src", "StudentIO.jl"))
+    include(joinpath(@__DIR__, "src", "StudentIO.jl"))
 catch e
-    println("Failed to load native library or initialize CUDA: $e")
-    println("Switching to SIMULATION MODE.")
-    global use_native = false
+    println("ERROR LOADING STUDENTIO MODULE:")
+    showerror(stdout, e)
+    println()
+    rethrow(e)
+end
+using .StudentIO
+
+# ============================================================================
+# Global State
+# ============================================================================
+
+# Model instance (meta-learned parameters)
+global model = create_default_model()
+try
+    global model = Flux.cpu(model) # Ensure on CPU for inference server
+catch e
+    println("Warning: Could not move model to CPU: $e")
 end
 
+# Active sessions: student_id -> Session
+const sessions = Dict{String,Any}()
+const session_lock = ReentrantLock()
+
+println("StudentIO Model Initialized.")
+
 # ============================================================================
-# Simulation Mode State
+# Validation / Helper Logic
 # ============================================================================
 
-const sim_students = [StudentState_Sim(i) for i in 1:5]
+function get_or_create_session(student_id::String)
+    lock(session_lock) do
+        if !haskey(sessions, student_id)
+            sessions[student_id] = create_session(model)
+            println("Created new session for student: $student_id")
+        end
+        return sessions[student_id]
+=======
+using Oxygen, HTTP, JSON3, Flux, Random, Statistics, Dates
 
-function run_simulation_step!()
-    for s in sim_students
-        # Drifting random walk for belief
-        noise = randn(Float32, 50) .* 0.05f0
-        s.belief_mean .= clamp.(s.belief_mean .+ noise, 0.0f0, 1.0f0)
-        
-        # Varying variance
-        var_noise = randn(Float32, 50) .* 0.01f0
-        s.belief_var .= clamp.(s.belief_var .+ var_noise, 0.0f0, 1.0f0)
-        
-        s.timestep += 1
+# ============================================================================
+# Neural Core Configuration
+# ============================================================================
+
+# 1. Define the Model Architecture
+#    Input: 64 dim (Text Embedding Hashed)
+#    Recurrent: LSTM (64 -> 128)
+#    Output: Dense (128 -> 3) [Sentiment Class: Negative, Neutral, Positive]
+const INPUT_DIM = 64
+const HIDDEN_DIM = 128
+const OUTPUT_DIM = 3
+
+model = Chain(
+    Dense(INPUT_DIM => 64, tanh),
+    LSTM(64 => HIDDEN_DIM),
+    Dense(HIDDEN_DIM => OUTPUT_DIM),
+    softmax
+)
+
+# 2. Initialize State
+#    Flux models with recurrent layers are stateful. 
+#    We maintain a global state for the single "Student" instance.
+global core_state = Flux.state(model)
+
+println("Neural Core Initialized: $model")
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+"""
+    text_to_embedding(text::String, dim::Int)
+    
+Hashes the input text into a stable random vector of size `dim`.
+This serves as a primitive "embedding" to feed the neural network 
+without needing a massive loaded language model.
+"""
+function text_to_embedding(text::String, dim::Int)
+    rng = MersenneTwister(hash(text))
+    return randn(rng, Float32, dim)
+end
+
+"""
+    get_heuristic_response_text(text::String, sentiment_idx::Int)
+    
+Generates a coherent English response based on input and model-predicted sentiment.
+"""
+function get_heuristic_response_text(text::String, sentiment_idx::Int)
+    lower_text = lowercase(text)
+
+    # Heuristics for text content
+    if occursin("hello", lower_text) || occursin("hi", lower_text)
+        return "Greetings. My neural pathways are active and ready."
+    elseif occursin("what", lower_text) && occursin("vector", lower_text)
+        return "A vector is a geometric object that has magnitude and direction. In my core, it represents a state of activation."
+    elseif occursin("help", lower_text)
+        return "I can assist you. Please state your query."
     end
+
+    # Fallback based on model sentiment
+    # Index 1: Negative, 2: Neutral, 3: Positive
+    if sentiment_idx == 1
+        return "I detect uncertainty. Could you rephrase that?"
+    elseif sentiment_idx == 3
+        return "Input processed successfully. I am aligned with this concept."
+    else
+        return "Processing input. State updated."
+>>>>>>> Stashed changes
+    end
+end
+
+# Simple heuristic to map text input to an "Observation"
+# In a real system, this would use an NLP encoder.
+# Here we just mock it to test the loop.
+function text_to_observation(text::String)
+    # Mocking: Check for keywords to simulate correctness/confidence
+    is_correct = occursin("correct", lowercase(text)) || occursin("yes", lowercase(text))
+    confidence_val = length(text) > 20 ? 0.9 : 0.5
+
+    # Create an observation vector (ObservationType = CORRECTNESS)
+    # We'll put correctness in dim 1, response time in dim 2, confidence in dim 3
+    values = zeros(Float32, 8) # observation_dim
+    values[1] = is_correct ? 1.0 : 0.0
+    values[2] = 2.0 # Fake response time
+    values[3] = confidence_val # Confidence
+
+    return Observation{Float32}(CORRECTNESS, values, Dict{Symbol,Any}(:text => text))
+end
+
+# Map the model's numerical action back to text
+function action_to_text(action::NamedTuple)
+    type_str = string(action.action_type)
+
+    responses = Dict(
+        "PRESENT_PROBLEM" => "Let's try a problem. Difficulty: $(round(action.difficulty, digits=2)).",
+        "PROVIDE_HINT" => "Here is a hint to help you move forward.",
+        "PROVIDE_SOLUTION" => "Let's review the solution together to clear up any confusion.",
+        "REVIEW_CONCEPT" => "I think we should review this concept again.",
+        "ADJUST_DIFFICULTY" => "I'm going to adjust the difficulty to better suit your pace.",
+        "SWITCH_TOPIC" => "Let's switch to a related topic.",
+        "ENCOURAGE" => "You're doing great! Keep going.",
+        "PAUSE" => "Let's take a short break."
+    )
+
+    base_response = get(responses, type_str, "I have a recommendation for you.")
+
+    return "$base_response (Action: $type_str)"
 end
 
 # ============================================================================
 # API Endpoints
 # ============================================================================
 
-@get "/api/telemetry" function(req::HTTP.Request)
-    response_data = []
+<<<<<<< Updated upstream
+@post "/api/ask" function (req::HTTP.Request)
+    try
+        data = JSON3.read(req.body)
+        question = data.question
+        student_id = get(data, "studentId", "default_student")
 
-    if use_native
-        try
-            # Trigger CUDA Kernels
-            ccall(run_step_ptr, Cvoid, (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Int32), 
-                  d_states, d_obs, d_actions, Int32(BATCH_SIZE))
-            
-            # Copy back to CPU
-            h_states = Array(d_states)
-            
-            # Format for UI
-            response_data = [
-                Dict(
-                    "id" => i,
-                    "belief" => collect(h_states[i].belief_mean),
-                    "variance" => collect(h_states[i].belief_var),
-                    "timestep" => h_states[i].timestep
-                ) for i in 1:5 # Limit to 5 for dashboard
-            ]
-        catch e
-            println("Runtime CUDA Error: $e")
-            # Fallback if runtime fails
-            run_simulation_step!()
-            response_data = [
-                Dict(
-                    "id" => s.id,
-                    "belief" => s.belief_mean,
-                    "variance" => s.belief_var,
-                    "timestep" => s.timestep
-                ) for s in sim_students
-            ]
-        end
-    else
-        # Pure Julia Simulation
-        run_simulation_step!()
-        response_data = [
-            Dict(
-                "id" => s.id,
-                "belief" => s.belief_mean,
-                "variance" => s.belief_var,
-                "timestep" => s.timestep
-            ) for s in sim_students
+        session = get_or_create_session(student_id)
+
+        # 1. Process Input -> Observation
+        # In a real 'ask' scenario, the user input is treated as a query.
+        # However, for the loop, we treat it as an observation of the student's current state/intent.
+        obs = text_to_observation(question)
+
+        # 2. Update State & Get Action
+        action = step!(session, obs)
+
+        # 3. Generate Response
+        response_text = action_to_text(action)
+
+        # 4. Get reasoning/rationale
+        # The step! function already adds it to history, but we can reconstruct or simple explain
+        # We can extract the rationale from the last history item if we want
+        latest_history = session.history[end]
+        rationale_obj = latest_history.rationale
+
+        # Convert simple types for JSON
+        reasoning_steps = [
+            "Analyzed input for correctness/intent",
+            "Updated belief state (uncertainty: $(round(session.uncertainty, digits=2)))",
+            "Selected action: $(action.action_type)",
+            "Value estimate: $(round(rationale_obj.value_estimate, digits=2))"
         ]
-    end
 
-    response_body = Dict(
-        "timestamp" => time(),
-        "students" => response_data,
-        "mode" => use_native ? "CUDA" : "SIMULATION"
-    )
-    
-    return HTTP.Response(200, ["Access-Control-Allow-Origin" => "*", "Content-Type" => "application/json"], JSON3.write(response_body))
+        # 5. Format Knowledge Dimensions (Visualization)
+        belief, var = get_belief_state(session)
+
+        # We just map the first few dims for simple viz
+        knowledge_dims = []
+        for i in 1:min(50, length(belief))
+            push!(knowledge_dims, Dict(
+                "dimension" => i,
+                "belief" => belief[i],
+                "variance" => i <= length(var) ? var[i] : 0.0,
+                "active" => belief[i] > 0.1
+            ))
+        end
+
+        response = Dict(
+            "answer" => response_text,
+            "reasoning" => reasoning_steps,
+            "confidence" => 1.0 - session.uncertainty,
+            "knowledgeDimensions" => knowledge_dims,
+            "timestamp" => time()
+        )
+
+        return HTTP.Response(200, ["Access-Control-Allow-Origin" => "*", "Content-Type" => "application/json"], JSON3.write(response))
+
+    catch e
+        println("Error in /api/ask: $e")
+        Base.show_backtrace(stdout, catch_backtrace())
+        return HTTP.Response(500, ["Access-Control-Allow-Origin" => "*"], JSON3.write(Dict("error" => string(e))))
+    end
 end
 
-# Removed unstable internal hack
+@post "/api/feedback" function (req::HTTP.Request)
+    # Placeholder for feedback endpoint
+    return HTTP.Response(200, ["Access-Control-Allow-Origin" => "*"], JSON3.write(Dict("status" => "received")))
+end
+
+@get "/api/telemetry" function (req::HTTP.Request)
+    # Return states of all active sessions
+    students_data = []
+
+    lock(session_lock) do
+        for (sid, session) in sessions
+            # Extract basic belief stats
+            b, v = get_belief_state(session)
+            # Just take the first 50 dims if larger
+            b_trunc = b[1:min(length(b), 50)]
+            v_trunc = length(v) > 0 ? v[1:min(length(v), 50)] : zeros(Float32, length(b_trunc))
+
+            # Use hash of string to get a consistent integer ID for the UI
+            id_hash = hash(sid) % 1000
+
+            push!(students_data, Dict(
+                "id" => abs(id_hash),
+                "belief" => b_trunc,
+                "variance" => v_trunc,
+                "timestep" => session.step_count
+            ))
+        end
+    end
+
+    # If no sessions, return dummy data so UI isn't empty
+    if isempty(students_data)
+        push!(students_data, Dict(
+            "id" => 1,
+            "belief" => zeros(Float32, 50),
+            "variance" => ones(Float32, 50) .* 0.5,
+            "timestep" => 0
+        ))
+    end
+
+    response = Dict(
+        "timestamp" => time(),
+        "students" => students_data
+    )
+
+    return HTTP.Response(200, ["Access-Control-Allow-Origin" => "*", "Content-Type" => "application/json"], JSON3.write(response))
+end
+
+# Options for CORS
+@post "/api/ask" function (req::HTTP.Request)
+    return HTTP.Response(200, ["Access-Control-Allow-Origin" => "*", "Access-Control-Allow-Headers" => "*", "Access-Control-Allow-Methods" => "POST, OPTIONS"])
+end
+Oxygen.options("/api/ask", (req) -> HTTP.Response(200, ["Access-Control-Allow-Origin" => "*", "Access-Control-Allow-Headers" => "Content-Type", "Access-Control-Allow-Methods" => "POST, OPTIONS"]))
+Oxygen.options("/api/feedback", (req) -> HTTP.Response(200, ["Access-Control-Allow-Origin" => "*", "Access-Control-Allow-Headers" => "Content-Type", "Access-Control-Allow-Methods" => "POST, OPTIONS"]))
+
 
 println("StudentIO Julia Server running on port 8080...")
-println("Mode: ", use_native ? "CUDA ACCELERATED" : "CPU SIMULATION")
+println("Ready to accept connections.")
+serve(host="0.0.0.0", port=8080)
+=======
+@get "/api/telemetry" function (req::HTTP.Request)
+    # Extract hidden state from the LSTM layer (layer 2 in the Chain)
+    # The state structure depends on the Flux version, but typically for LSTM
+    # it's a tuple (h, c). We want 'h' (the hidden output).
+
+    # Safe access to recurrent state
+    # LSTM state in Flux.state(chain) is usually named similarly to the layer
+    # We will grab the raw hidden state vector.
+
+    # Note: In recent Flux, state is a NamedTuple. 
+    # We need to extract the hidden matrix.
+    # For a simple demo, we will re-run the model on 'noise' if idle to get a live look,
+    # OR better, just expose the current 'h' from the global state if accessible.
+
+    # Accessing the specific LSTM state (layer 2)
+    # core_state[2] should be the LSTM state -> (h, c)
+    lstm_state = core_state[2]
+
+    # Depending on Flux version, this might be a tuple or NamedTuple.
+    # We'll convert to vector safely.
+    hidden_vec = Float32[]
+
+    try
+        # Common structure: (h, c)
+        if isa(lstm_state, Tuple)
+            hidden_vec = vec(lstm_state[1]) # h
+        elseif hasproperty(lstm_state, :h) # NamedTuple or struct
+            hidden_vec = vec(lstm_state.h)
+        else
+            # Fallback: just return zeros if structure is unexpected
+            hidden_vec = zeros(Float32, HIDDEN_DIM)
+        end
+    catch e
+        println("Telemetry Error: $e")
+        hidden_vec = zeros(Float32, HIDDEN_DIM)
+    end
+
+    return HTTP.Response(200, ["Access-Control-Allow-Origin" => "*", "Content-Type" => "application/json"],
+        JSON3.write(Dict(
+            "timestamp" => Dates.now(),
+            "activations" => hidden_vec
+        )))
+end
+
+@post "/api/chat" function (req::HTTP.Request)
+    try
+        global core_state
+        data = JSON3.read(String(req.body))
+        user_text = data.text
+
+        # 1. Embed Input
+        x = text_to_embedding(user_text, INPUT_DIM)
+
+        # 2. Run Model (State Update)
+        # Flux.stateful call if we wrapped it, or clean function call:
+        (y, new_state) = Flux.run(model, x, core_state)
+
+        # Update global state
+        core_state = new_state
+
+        # 3. Interpret Output
+        # y is [3] probability vector
+        sentiment_idx = argmax(y)
+        sentiments = ["negative", "neutral", "positive"]
+        detected_sentiment = sentiments[sentiment_idx]
+
+        # 4. Generate Response
+        response_text = get_heuristic_response_text(user_text, sentiment_idx)
+
+        return HTTP.Response(200, ["Access-Control-Allow-Origin" => "*", "Content-Type" => "application/json"],
+            JSON3.write(Dict(
+                "response" => response_text,
+                "sentiment" => detected_sentiment,
+                "model_output" => y
+            )))
+
+    catch e
+        println("Chat Error: $e")
+        return HTTP.Response(500, ["Access-Control-Allow-Origin" => "*"], JSON3.write(Dict("error" => string(e))))
+    end
+end
+
+println("StudentIO Single Core (Flux) Server running on port 8080...")
 serve(port=8080)
+>>>>>>> Stashed changes

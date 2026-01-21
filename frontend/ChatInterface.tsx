@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
+import { API_BASE_URL } from '../api_client';
 
 interface ChatMessage {
     id: string;
@@ -42,7 +43,7 @@ export function ChatInterface({ studentId }: { studentId: number }) {
         setIsTyping(true);
 
         try {
-            const res = await fetch('http://localhost:8080/api/chat', {
+            const res = await fetch(`${API_BASE_URL}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ studentId, text: userMsg.text })

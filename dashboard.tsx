@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Activity, Zap, Server, Cpu } from 'lucide-react';
 import { ChatInterface } from './frontend/ChatInterface';
+import { API_BASE_URL } from './api_client';
 
 // ============================================================================
 // Types
@@ -88,7 +89,7 @@ export default function StudentIODashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('http://localhost:8080/api/telemetry');
+        const res = await fetch(`${API_BASE_URL}/api/telemetry`);
         if (!res.ok) throw new Error('Network response was not ok');
         const data = await res.json();
         setTelemetry(data);

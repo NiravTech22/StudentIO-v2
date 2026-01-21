@@ -12,7 +12,7 @@ export default defineConfig({
         port: 5173,
         // Proxy API requests to backend during development to avoid CORS issues
         proxy: {
-            '/api': {
+            '^/api': {
                 target: 'http://localhost:8080',
                 changeOrigin: true,
                 secure: false,

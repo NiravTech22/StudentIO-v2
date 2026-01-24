@@ -1,21 +1,27 @@
 {
-  "name": "student-io-dashboard",
-  "version": "1.0.0",
+  "name": "studentio-frontend",
+  "version": "2.0.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint ."
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "framer-motion": "^11.0.0",
     "lucide-react": "^0.300.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-markdown": "^9.0.0",
+    "react-syntax-highlighter": "^15.5.0",
+    "socket.io-client": "^4.5.4"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
+    "@types/react-syntax-highlighter": "^15.5.11",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32",

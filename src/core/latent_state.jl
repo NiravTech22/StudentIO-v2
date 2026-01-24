@@ -64,16 +64,16 @@ function TransitionModel{T}(config::StudentStateConfig) where T<:AbstractFloat
     input_dim = config.state_dim + config.action_dim
     hidden_dim = 128
     output_dim = config.state_dim
-    
+
     network = Chain(
         Dense(input_dim => hidden_dim, tanh),
         Dense(hidden_dim => hidden_dim, relu),
         Dense(hidden_dim => output_dim)
     )
-    
+
     # Initialize noise log-variance (small initial noise)
     noise_logvar = fill(T(-3.0), config.state_dim)  # σ ≈ 0.22
-    
+
     TransitionModel{T}(network, noise_logvar, config)
 end
 
@@ -82,7 +82,7 @@ Flux.@layer TransitionModel
 
 # Get trainable parameters
 function Flux.trainable(model::TransitionModel)
-    (network = model.network, noise_logvar = model.noise_logvar)
+    (network=model.network, noise_logvar=model.noise_logvar)
 end
 
 """
@@ -107,23 +107,23 @@ xₜ₊₁ = xₜ + Δx + wₜ
 ```
 """
 function transition(model::TransitionModel{T}, x_t::AbstractVector, u_t::AbstractVector;
-                    deterministic::Bool = false) where T
+    deterministic::Bool=false) where T
     # Concatenate state and action
     input = vcat(x_t, u_t)
-    
+
     # Compute state change
     Δx = model.network(input)
-    
+
     # Add residual connection
     x_next = x_t .+ Δx
-    
+
     # Add stochastic noise (reparameterization trick for differentiability)
     if !deterministic
         σ = exp.(T(0.5) .* model.noise_logvar)
         ε = randn(T, length(x_t))
         x_next = x_next .+ σ .* ε
     end
-    
+
     return x_next
 end
 
@@ -140,26 +140,26 @@ Batched transition for efficiency (states as columns).
 - `x_next_batch::Matrix`: Next states [n × batch_size]
 """
 function transition_batch(model::TransitionModel{T}, x_batch::AbstractMatrix, u_batch::AbstractMatrix;
-                          deterministic::Bool = false) where T
+    deterministic::Bool=false) where T
     batch_size = size(x_batch, 2)
     @assert size(u_batch, 2) == batch_size "Batch sizes must match"
-    
+
     # Concatenate states and actions
     input = vcat(x_batch, u_batch)
-    
+
     # Compute state changes
     Δx = model.network(input)
-    
+
     # Residual connection
     x_next = x_batch .+ Δx
-    
+
     # Add noise
     if !deterministic
         σ = exp.(T(0.5) .* model.noise_logvar)
         ε = randn(T, size(x_batch))
         x_next = x_next .+ σ .* ε
     end
-    
+
     return x_next
 end
 
@@ -182,11 +182,11 @@ function decompose_state(model::TransitionModel, x::AbstractVector)
     config = model.config
     m = config.mastery_dim
     k = config.misconception_dim
-    
+
     (
-        mastery = x[1:m],
-        misconceptions = x[m+1:m+k],
-        abstractions = x[m+k+1:end]
+        mastery=x[1:m],
+        misconceptions=x[m+1:m+k],
+        abstractions=x[m+k+1:end]
     )
 end
 
@@ -195,10 +195,10 @@ end
 
 Compose state vector from components.
 """
-function compose_state(model::TransitionModel{T}; 
-                       mastery::AbstractVector, 
-                       misconceptions::AbstractVector,
-                       abstractions::AbstractVector) where T
+function compose_state(model::TransitionModel{T};
+    mastery::AbstractVector,
+    misconceptions::AbstractVector,
+    abstractions::AbstractVector) where T
     convert(Vector{T}, vcat(mastery, misconceptions, abstractions))
 end
 
@@ -217,14 +217,14 @@ Useful for understanding action effects.
 function compute_learning_effect(model::TransitionModel, x_t::AbstractVector, u_t::AbstractVector)
     input = vcat(x_t, u_t)
     Δx = model.network(input)
-    
+
     components = decompose_state(model, Δx)
-    
+
     (
-        mastery_change = components.mastery,
-        misconception_change = components.misconceptions,
-        abstraction_change = components.abstractions,
-        total_change_norm = sqrt(sum(Δx.^2))
+        mastery_change=components.mastery,
+        misconception_change=components.misconceptions,
+        abstraction_change=components.abstractions,
+        total_change_norm=sqrt(sum(Δx .^ 2))
     )
 end
 
@@ -251,10 +251,10 @@ function effective_noise_snr(model::TransitionModel{T}, x_t::AbstractVector, u_t
     input = vcat(x_t, u_t)
     Δx = model.network(input)
     σ = noise_std(model)
-    
-    signal = sqrt(sum(Δx.^2))
-    noise = sqrt(sum(σ.^2))
-    
+
+    signal = sqrt(sum(Δx .^ 2))
+    noise = sqrt(sum(σ .^ 2))
+
     return signal / (noise + eps(T))
 end
 
@@ -275,11 +275,11 @@ Requires Zygote for automatic differentiation.
 """
 function transition_jacobian(model::TransitionModel, x_t::AbstractVector, u_t::AbstractVector)
     # Use Zygote to compute Jacobian
-    f(x) = transition(model, x, u_t, deterministic=true)
-    
+    f(x) = transition(model, x, u_t; deterministic=true)
+
     n = length(x_t)
     J = zeros(eltype(x_t), n, n)
-    
+
     # Compute each column (∂f/∂xᵢ)
     for i in 1:n
         _, back = Zygote.pullback(f, x_t)
@@ -287,7 +287,7 @@ function transition_jacobian(model::TransitionModel, x_t::AbstractVector, u_t::A
         eᵢ[i] = 1
         J[:, i] = back(eᵢ)[1]
     end
-    
+
     return J
 end
 

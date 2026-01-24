@@ -105,13 +105,15 @@ end
 end
 
 # Chat Endpoint (The Main Interface)
-@post "/api/ask" function (req::HTTP.Request)
+@post "/api/chat" function (req::HTTP.Request)
     try
         data = JSON3.read(req.body)
-        user_text = data.question
+        # Accept both 'question' and 'text' fields for flexibility
+        user_text = get(data, :text, get(data, :question, ""))
+        student_id = get(data, :studentId, 0)  # Accept but ignore for now
 
         # Log request in staging/dev
-        @debug "Received Question" text = user_text
+        @debug "Received Chat Message" text = user_text student_id = student_id
 
         # Run Inference
         (probs, model_version) = run_inference(user_text)
@@ -126,6 +128,15 @@ end
             "Processing vector state..."
         end
 
+        # Infer sentiment for frontend
+        sentiment = if sentiment_idx == 1
+            "negative"
+        elseif sentiment_idx == 3
+            "positive"
+        else
+            "neutral"
+        end
+
         # Append debug info in Staging
         reasoning = ["Processed by $model_version"]
         if !IS_PROD
@@ -134,7 +145,8 @@ end
         end
 
         return Dict(
-            "answer" => resp_text,
+            "response" => resp_text,  # Changed from "answer" to match frontend
+            "sentiment" => sentiment,
             "reasoning" => reasoning,
             "confidence" => maximum(probs),
             "timestamp" => time()
@@ -171,8 +183,19 @@ end
 # 6. Server Startup
 # ============================================================================
 
-# CORS Options
-Oxygen.options("/api/ask", (req) -> HTTP.Response(200, ["Access-Control-Allow-Origin" => "*", "Access-Control-Allow-Headers" => "Content-Type", "Access-Control-Allow-Methods" => "POST, OPTIONS"]))
+# Add CORS middleware
+function cors_handler(handle)
+    function (req::HTTP.Request)
+        # Add CORS headers to all responses
+        response = handle(req)
+        if response isa HTTP.Response
+            push!(response.headers, "Access-Control-Allow-Origin" => "*")
+            push!(response.headers, "Access-Control-Allow-Methods" => "GET, POST, OPTIONS")
+            push!(response.headers, "Access-Control-Allow-Headers" => "Content-Type")
+        end
+        return response
+    end
+end
 
 println("Server listening on 0.0.0.0:8080")
-serve(host="0.0.0.0", port=8080)
+serve(host="0.0.0.0", port=8080, middleware=[cors_handler])

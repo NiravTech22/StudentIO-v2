@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Activity, Zap, Server, Cpu } from 'lucide-react';
-import { ChatInterface } from './frontend/ChatInterface';
+import { ChatInterface } from '../frontend/ChatInterface';
 import { API_BASE_URL } from './api_client';
 
 // ============================================================================

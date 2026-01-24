@@ -58,59 +58,23 @@ using Distributions
 using LinearAlgebra
 using Random
 using Statistics
+using Oxygen
+using HTTP
+using JSON3
+
+# ============================================================================
+# Core Components
+# ============================================================================
 
 # Core types and abstractions
 include(joinpath(@__DIR__, "core/types.jl"))
 
-# Core components
 # Core components
 include(joinpath(@__DIR__, "core/latent_state.jl"))
 include(joinpath(@__DIR__, "core/observation_model.jl"))
 include(joinpath(@__DIR__, "core/belief_filter.jl"))
 include(joinpath(@__DIR__, "core/policy.jl"))
 include(joinpath(@__DIR__, "core/reward.jl"))
-
-# Meta-learning framework
-include(joinpath(@__DIR__, "meta/task_distribution.jl"))
-include(joinpath(@__DIR__, "meta/meta_learning.jl"))
-
-# Training infrastructure
-include(joinpath(@__DIR__, "training/simulate_student.jl"))
-include(joinpath(@__DIR__, "training/train_loop.jl"))
-
-# Evaluation and diagnostics
-include(joinpath(@__DIR__, "evaluation/diagnostics.jl"))
-include(joinpath(@__DIR__, "evaluation/ablations.jl"))
-
-# CUDA acceleration
-# include("../cuda/kernels.jl")
-# include("../cuda/acceleration.jl")
-
-# ============================================================================
-# Public API Exports
-# ============================================================================
-
-# Core types
-export StudentStateConfig, StudentState, ActionSpace, Observation
-export TransitionModel, ObservationModel, BeliefFilter, PolicyNetwork
-export RewardConfig, RewardFunction
-
-# Model construction
-export StudentIOModel, create_default_model
-
-# Training
-export SyntheticStudent, StudentTask, TaskDistribution
-export sample_student, train!, meta_train!
-
-# Inference and control
-export create_session, step!, reset!, get_belief_state
-export select_action, explain_action
-
-# Evaluation
-export DiagnosticResults, run_diagnostics, run_ablation
-
-# Configuration
-export PPOConfig, MetaLearnerConfig
 
 # ============================================================================
 # Main Model Structure
@@ -333,5 +297,54 @@ Retrieve current belief state and uncertainty estimate.
 function get_belief_state(session::StudentSession)
     return (belief=copy(session.belief_state), uncertainty=session.uncertainty)
 end
+
+# ============================================================================
+# Meta, Training, and Evaluation Modules
+# ============================================================================
+
+# Meta-learning framework
+include(joinpath(@__DIR__, "meta/task_distribution.jl"))
+include(joinpath(@__DIR__, "meta/meta_learning.jl"))
+
+# Training infrastructure
+include(joinpath(@__DIR__, "training/simulate_student.jl"))
+include(joinpath(@__DIR__, "training/train_loop.jl"))
+
+# Evaluation and diagnostics
+include(joinpath(@__DIR__, "evaluation/diagnostics.jl"))
+include(joinpath(@__DIR__, "evaluation/ablations.jl"))
+
+# Visualization server
+include(joinpath(@__DIR__, "visualization_server.jl"))
+
+# CUDA acceleration
+# include("../cuda/kernels.jl")
+# include("../cuda/acceleration.jl")
+
+# ============================================================================
+# Public API Exports
+# ============================================================================
+
+# Core types
+export StudentStateConfig, StudentState, ActionSpace, Observation
+export TransitionModel, ObservationModel, BeliefFilter, PolicyNetwork
+export RewardConfig, RewardFunction
+
+# Model construction
+export StudentIOModel, create_default_model
+
+# Training
+export SyntheticStudent, StudentTask, TaskDistribution
+export sample_student, train!, meta_train!
+
+# Inference and control
+export create_session, step!, reset!, get_belief_state
+export select_action, explain_action
+
+# Evaluation
+export DiagnosticResults, run_diagnostics, run_ablation
+
+# Configuration
+export PPOConfig, MetaLearnerConfig
 
 end # module StudentIO

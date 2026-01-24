@@ -1,320 +1,303 @@
+/**
+ * StudentIO Backend Server
+ * Node.js/Express API Gateway
+ * Routes requests between frontend and Python AI service
+ */
+
 const express = require('express');
 const cors = require('cors');
-const WebSocket = require('ws');
-const { v4: uuidv4 } = require('uuid');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs').promises;
+const axios = require('axios');
 const http = require('http');
+const socketIo = require('socket.io');
 
+// Initialize Express app
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const io = socketIo(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+// Configuration
+const PORT = process.env.PORT || 3000;
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024; // 10MB
+
+// Ensure upload directory exists
+fs.mkdir(UPLOAD_DIR, { recursive: true }).catch(console.error);
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  credentials: true
+}));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// ============================================================================
-// Meta-Learning Model Implementation
-// ============================================================================
-
-class MetaLearningModel {
-  constructor() {
-    this.learningRate = 0.01;
-    this.metaLearningRate = 0.001;
-    this.beliefState = new Array(50).fill(0.1); // Initialize with low confidence
-    this.variance = new Array(50).fill(0.9); // High initial uncertainty
-    this.knowledgeBase = new Map(); // Store learned patterns
-    this.interactionHistory = [];
-    this.personalizationFactors = new Map(); // Per-student adaptation
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const studentId = req.body.studentId || 'default';
+    const studentDir = path.join(UPLOAD_DIR, studentId);
+    await fs.mkdir(studentDir, { recursive: true });
+    cb(null, studentDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
   }
-
-  // Generate answer to any question using current knowledge state
-  generateAnswer(question, studentId = null) {
-    const personalization = this.personalizationFactors.get(studentId) || {
-      difficulty: 0.5,
-      learningStyle: 'balanced',
-      confidence: 0.5
-    };
-
-    // Simulate reasoning process
-    const reasoning = this.reasonAboutQuestion(question, personalization);
-    const answer = this.generateResponse(reasoning, personalization);
-    
-    // Update belief state based on the reasoning process
-    this.updateBeliefState(reasoning);
-    
-    return {
-      answer,
-      reasoning: reasoning.steps,
-      confidence: reasoning.confidence,
-      knowledgeDimensions: this.getKnowledgeDimensions(),
-      timestamp: Date.now()
-    };
-  }
-
-  reasonAboutQuestion(question, personalization) {
-    // Extract key concepts from question
-    const concepts = this.extractConcepts(question);
-    const reasoning = {
-      steps: [],
-      confidence: 0.5,
-      concepts: concepts
-    };
-
-    // Simulate multi-step reasoning
-    reasoning.steps.push(`Analyzing question: "${question}"`);
-    reasoning.steps.push(`Identified ${concepts.length} key concepts`);
-    
-    // Use belief state to inform reasoning
-    const relevantKnowledge = concepts.map(concept => ({
-      concept,
-      activation: this.beliefState[concept.hash % 50] || 0.1
-    }));
-
-    const avgActivation = relevantKnowledge.reduce((sum, k) => sum + k.activation, 0) / relevantKnowledge.length;
-    reasoning.confidence = Math.min(0.95, avgActivation * 1.5);
-
-    reasoning.steps.push(`Knowledge activation: ${avgActivation.toFixed(2)}`);
-    reasoning.steps.push(`Confidence level: ${reasoning.confidence.toFixed(2)}`);
-
-    return reasoning;
-  }
-
-  generateResponse(reasoning, personalization) {
-    const responses = [
-      `Based on my analysis, I can help you understand this concept better.`,
-      `Let me break this down for you step by step.`,
-      `This is an interesting question that involves several key ideas.`,
-      `I can explain this from multiple perspectives to help you learn.`
-    ];
-
-    const baseResponse = responses[Math.floor(Math.random() * responses.length)];
-    const detail = reasoning.confidence > 0.7 ? 
-      " I have high confidence in this area and can provide detailed explanations." :
-      " I'm still learning about this topic, but I'll share what I know.";
-
-    return baseResponse + detail;
-  }
-
-  extractConcepts(question) {
-    // Simple concept extraction - in production would use NLP
-    const words = question.toLowerCase().split(/\s+/);
-    const concepts = words.filter(word => word.length > 4).map((word, i) => ({
-      word,
-      hash: this.simpleHash(word + i)
-    }));
-    return concepts;
-  }
-
-  simpleHash(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash) % 50;
-  }
-
-  updateBeliefState(reasoning) {
-    // Update belief state based on reasoning confidence
-    const updateAmount = reasoning.confidence * this.learningRate;
-    
-    reasoning.concepts.forEach(concept => {
-      const index = concept.hash % 50;
-      this.beliefState[index] = Math.min(1.0, this.beliefState[index] + updateAmount);
-      this.variance[index] = Math.max(0.1, this.variance[index] - updateAmount * 0.5);
-    });
-
-    // Store interaction for meta-learning
-    this.interactionHistory.push({
-      timestamp: Date.now(),
-      reasoning,
-      beliefState: [...this.beliefState]
-    });
-  }
-
-  learnFromFeedback(question, answer, feedback, studentId = null) {
-    // Meta-learning: adapt based on student feedback
-    const feedbackScore = feedback.correct ? 1.0 : -0.5;
-    const adaptation = feedbackScore * this.metaLearningRate;
-
-    // Update personalization factors
-    const personalization = this.personalizationFactors.get(studentId) || {
-      difficulty: 0.5,
-      learningStyle: 'balanced',
-      confidence: 0.5
-    };
-
-    personalization.confidence = Math.max(0.1, Math.min(1.0, 
-      personalization.confidence + adaptation * 0.1));
-
-    this.personalizationFactors.set(studentId, personalization);
-
-    // Update belief state based on feedback
-    const concepts = this.extractConcepts(question);
-    concepts.forEach(concept => {
-      const index = concept.hash % 50;
-      this.beliefState[index] = Math.max(0.05, Math.min(1.0, 
-        this.beliefState[index] + adaptation));
-    });
-
-    return {
-      adapted: true,
-      personalization,
-      knowledgeGrowth: this.calculateKnowledgeGrowth()
-    };
-  }
-
-  getKnowledgeDimensions() {
-    return this.beliefState.map((belief, i) => ({
-      dimension: i,
-      belief: belief,
-      variance: this.variance[i],
-      active: belief > 0.1
-    }));
-  }
-
-  calculateKnowledgeGrowth() {
-    if (this.interactionHistory.length < 2) return 0;
-    const recent = this.interactionHistory[this.interactionHistory.length - 1];
-    const previous = this.interactionHistory[this.interactionHistory.length - 2];
-    
-    const recentAvg = recent.beliefState.reduce((a, b) => a + b, 0) / recent.beliefState.length;
-    const previousAvg = previous.beliefState.reduce((a, b) => a + b, 0) / previous.beliefState.length;
-    
-    return recentAvg - previousAvg;
-  }
-
-  // Simulate multiple student instances for dashboard
-  generateMultipleStudentStates(count = 6) {
-    const students = [];
-    for (let i = 0; i < count; i++) {
-      const studentModel = new MetaLearningModel();
-      // Simulate different learning states
-      studentModel.beliefState = studentModel.beliefState.map(() => Math.random() * 0.8);
-      studentModel.variance = studentModel.variance.map(() => Math.random() * 0.5 + 0.1);
-      
-      students.push({
-        id: i + 1,
-        belief: studentModel.beliefState,
-        variance: studentModel.variance,
-        timestep: Math.floor(Math.random() * 100)
-      });
-    }
-    return students;
-  }
-}
-
-// ============================================================================
-// Initialize Model and API Routes
-// ============================================================================
-
-const model = new MetaLearningModel();
-const activeSessions = new Map();
-
-// API Routes
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: Date.now() });
 });
 
-app.get('/api/telemetry', (req, res) => {
-  // Return simulated student states for dashboard
-  const students = model.generateMultipleStudentStates();
-  res.json({
-    timestamp: Date.now(),
-    students
-  });
+const upload = multer({
+  storage,
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /pdf|docx|doc|pptx|ppt|png|jpg|jpeg|tiff|bmp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Allowed: PDF, DOCX, PPTX, images'));
+    }
+  }
 });
 
-app.post('/api/ask', (req, res) => {
-  const { question, studentId } = req.body;
-  
+// ============================================================================
+// Routes
+// ============================================================================
+
+// Health Check
+app.get('/health', async (req, res) => {
+  try {
+    const aiHealth = await axios.get(`${AI_SERVICE_URL}/health`);
+    res.json({
+      status: 'ok',
+      backend: 'online',
+      ai_service: aiHealth.data.status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'degraded',
+      backend: 'online',
+      ai_service: 'offline',
+      error: error.message
+    });
+  }
+});
+
+// Chat Endpoint - Answer Questions
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { question, studentId = 'default', context = [], conversationHistory = [] } = req.body;
+
+    if (!question) {
+      return res.status(400).json({ error: 'Question is required' });
+    }
+
+    console.log(`📝 Question from student ${studentId}: ${question.substring(0, 50)}...`);
+
+    // Forward to AI service
+    const response = await axios.post(`${AI_SERVICE_URL}/answer`, {
+      question,
+      student_id: studentId,
+      context,
+      conversation_history: conversationHistory
+    });
+
+    res.json(response.data);
+
+  } catch (error) {
+    console.error('Chat error:', error.message);
+    res.status(500).json({
+      error: 'Failed to get answer',
+      details: error.message
+    });
+  }
+});
+
+// Streaming Chat Endpoint
+app.get('/api/chat/stream', async (req, res) => {
+  const { question, studentId = 'default' } = req.query;
+
   if (!question) {
     return res.status(400).json({ error: 'Question is required' });
   }
 
-  const response = model.generateAnswer(question, studentId);
-  res.json(response);
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  });
+
+  try {
+    // Stream from AI service
+    const aiStream = await axios.get(`${AI_SERVICE_URL}/answer/stream`, {
+      params: { question, student_id: studentId },
+      responseType: 'stream'
+    });
+
+    aiStream.data.on('data', (chunk) => {
+      res.write(chunk);
+    });
+
+    aiStream.data.on('end', () => {
+      res.end();
+    });
+
+  } catch (error) {
+    res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+    res.end();
+  }
 });
 
-app.post('/api/feedback', (req, res) => {
-  const { question, answer, feedback, studentId } = req.body;
-  
-  if (!question || !feedback) {
-    return res.status(400).json({ error: 'Question and feedback are required' });
+// File Upload
+app.post('/api/files/upload', upload.array('files', 10), async (req, res) => {
+  try {
+    const { studentId = 'default' } = req.body;
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+
+    console.log(`📤 Processing ${req.files.length} files for student ${studentId}`);
+
+    const processedFiles = [];
+
+    for (const file of req.files) {
+      try {
+        // Call Python document parser
+        const formData = new FormData();
+        const fileBuffer = await fs.readFile(file.path);
+        formData.append('file', new Blob([fileBuffer]), file.originalname);
+        formData.append('student_id', studentId);
+
+        const parseResponse = await axios.post(
+          `${AI_SERVICE_URL}/parse_document`,
+          formData,
+          { headers: formData.getHeaders() }
+        );
+
+        processedFiles.push({
+          filename: file.originalname,
+          size: file.size,
+          type: file.mimetype,
+          status: 'processed',
+          chunks: parseResponse.data.chunks_added || 0
+        });
+
+      } catch (parseError) {
+        console.error(`Error parsing ${file.originalname}:`, parseError.message);
+        processedFiles.push({
+          filename: file.originalname,
+          size: file.size,
+          type: file.mimetype,
+          status: 'error',
+          error: parseError.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      files: processedFiles,
+      total: req.files.length
+    });
+
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({
+      error: 'Upload failed',
+      details: error.message
+    });
+  }
+});
+
+// Get Student Profile
+app.get('/api/profile/:studentId', async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const response = await axios.get(`${AI_SERVICE_URL}/profile/${studentId}`);
+    res.json(response.data);
+
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to get profile',
+      details: error.message
+    });
+  }
+});
+
+// Submit Feedback
+app.post('/api/feedback', async (req, res) => {
+  try {
+    const { studentId, question, answer, helpful, rating } = req.body;
+
+    await axios.post(`${AI_SERVICE_URL}/feedback`, {
+      student_id: studentId,
+      question,
+      answer,
+      helpful,
+      rating
+    });
+
+    res.json({ success: true });
+
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to submit feedback',
+      details: error.message
+    });
+  }
+});
+
+// ============================================================================
+// WebSocket for Real-time Features
+// ============================================================================
+
+io.on('connection', (socket) => {
+  console.log('🔌 Client connected:', socket.id);
+
+  socket.on('join_student', (studentId) => {
+    socket.join(`student_${studentId}`);
+    console.log(`Student ${studentId} joined room`);
+  });
+
+  socket.on('typing', ({ studentId, isTyping }) => {
+    io.to(`student_${studentId}`).emit('user_typing', { isTyping });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔌 Client disconnected:', socket.id);
+  });
+});
+
+// ============================================================================
+// Error Handling
+// ============================================================================
+
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File too large. Max size: 10MB' });
+    }
+    return res.status(400).json({ error: err.message });
   }
 
-  const result = model.learnFromFeedback(question, answer, feedback, studentId);
-  res.json(result);
-});
-
-app.get('/api/student/:id/state', (req, res) => {
-  const studentId = req.params.id;
-  const personalization = model.personalizationFactors.get(studentId) || {
-    difficulty: 0.5,
-    learningStyle: 'balanced',
-    confidence: 0.5
-  };
-  
-  res.json({
-    studentId,
-    personalization,
-    knowledgeState: model.getKnowledgeDimensions()
-  });
-});
-
-// ============================================================================
-// WebSocket for Real-time Communication
-// ============================================================================
-
-wss.on('connection', (ws) => {
-  const sessionId = uuidv4();
-  console.log(`New WebSocket connection: ${sessionId}`);
-
-  ws.on('message', (message) => {
-    try {
-      const data = JSON.parse(message);
-      
-      switch (data.type) {
-        case 'ask':
-          const response = model.generateAnswer(data.question, data.studentId);
-          ws.send(JSON.stringify({
-            type: 'answer',
-            sessionId,
-            ...response
-          }));
-          break;
-          
-        case 'feedback':
-          const feedbackResult = model.learnFromFeedback(
-            data.question, 
-            data.answer, 
-            data.feedback, 
-            data.studentId
-          );
-          ws.send(JSON.stringify({
-            type: 'learning_update',
-            sessionId,
-            ...feedbackResult
-          }));
-          break;
-          
-        default:
-          ws.send(JSON.stringify({
-            type: 'error',
-            message: 'Unknown message type'
-          }));
-      }
-    } catch (error) {
-      ws.send(JSON.stringify({
-        type: 'error',
-        message: 'Invalid message format'
-      }));
-    }
-  });
-
-  ws.on('close', () => {
-    console.log(`WebSocket connection closed: ${sessionId}`);
+  res.status(500).json({
+    error: 'Internal server error',
+    details: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 
@@ -322,9 +305,21 @@ wss.on('connection', (ws) => {
 // Start Server
 // ============================================================================
 
-const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => {
-  console.log(`🚀 StudentIO Backend running on port ${PORT}`);
-  console.log(`📊 Dashboard telemetry: http://localhost:${PORT}/api/telemetry`);
-  console.log(`🔗 WebSocket server ready for connections`);
+  console.log('🚀 StudentIO Backend Server Started');
+  console.log(`📡 Listening on port ${PORT}`);
+  console.log(`🤖 AI Service URL: ${AI_SERVICE_URL}`);
+  console.log(`📁 Upload directory: ${UPLOAD_DIR}`);
+  console.log(`⚙️  Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('👋 SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('💤 Server closed');
+    process.exit(0);
+  });
+});
+
+module.exports = app;

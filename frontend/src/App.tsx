@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = 'http://localhost:3000';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -25,10 +25,13 @@ export default function App() {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${API_URL}/api/query`, {
+            const response = await fetch(`${API_URL}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: input })
+                body: JSON.stringify({
+                    question: input,
+                    studentId: 'default'
+                })
             });
 
             const data = await response.json();
@@ -42,7 +45,7 @@ export default function App() {
             console.error('Error:', error);
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: 'Failed to connect to the AI. Make sure the Python server is running on port 8000.'
+                content: 'Failed to connect to the AI. Please ensure the backend server is running on port 3000.'
             }]);
         } finally {
             setIsLoading(false);

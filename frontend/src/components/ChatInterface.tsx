@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User2, Sparkles, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Send, User2, Sparkles, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -24,7 +24,7 @@ export default function ChatInterface({ studentId, apiUrl }: Props) {
         {
             id: '0',
             role: 'assistant',
-            content: '👋 Hello! I\'m your AI learning assistant. Ask me anything - from math and science to history and programming. I can also help you with documents you\'ve uploaded!',
+            content: 'Hello. I am StudentIO, your advanced learning assistant. I can specific concepts, solve complex problems, or help you structure your learning path.',
             timestamp: new Date(),
             sentiment: 'positive'
         }
@@ -90,7 +90,7 @@ export default function ChatInterface({ studentId, apiUrl }: Props) {
             setMessages(prev => [...prev, {
                 id: Date.now().toString(),
                 role: 'assistant',
-                content: '❌ Sorry, I encountered an error. Please make sure the backend is running and try again.',
+                content: 'I apologize, but I am unable to connect to the knowledge base at the moment. Please verify the system status.',
                 timestamp: new Date(),
                 sentiment: 'negative'
             }]);
@@ -172,7 +172,7 @@ export default function ChatInterface({ studentId, apiUrl }: Props) {
                                             <div className="prose prose-invert prose-sm max-w-none">
                                                 <ReactMarkdown
                                                     components={{
-                                                        code({ node, inline, className, children, ...props }) {
+                                                        code({ node, inline, className, children, ...props }: any) {
                                                             const match = /language-(\w+)/.exec(className || '');
                                                             return !inline && match ? (
                                                                 <SyntaxHighlighter

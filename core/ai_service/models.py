@@ -62,15 +62,16 @@ class AIModel:
         ).to(self. device)
         
         # Generate
+        print(f"🤔 Generating answer for prompt length: {len(prompt)}")
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
                 max_length=max_length,
-                num_beams=4,
-                temperature=0.7,
+                num_beams=5,
+                temperature=0.3, # Matching debug script success
                 do_sample=True,
-                top_p=0.9,
-                repetition_penalty=1.2,
+                top_p=0.92,
+                repetition_penalty=1.1, # Lower penalty to prevent 'drunk' grammar
                 no_repeat_ngram_size=3,
                 early_stopping=True,
                 return_dict_in_generate=True,
@@ -82,6 +83,7 @@ class AIModel:
             outputs.sequences[0],
             skip_special_tokens=True
         )
+        print(f"💡 Raw Generated Answer: {generated_text[:100]}...")
         
         # Calculate confidence (average of token scores)
         if hasattr(outputs, 'sequences_scores'):
@@ -94,7 +96,7 @@ class AIModel:
     async def generate_stream(
         self,
         prompt: str,
-        max_length: int = 512
+        max_length: int = 768
     ) -> AsyncGenerator[str, None]:
         """
         Stream generate tokens one at a time
@@ -107,7 +109,7 @@ class AIModel:
         inputs = self.tokenizer(
             prompt,
             return_tensors="pt",
-            max_length=512,
+            max_length=1024,
             truncation=True
         ).to(self.device)
         
@@ -167,7 +169,7 @@ def load_model(model_name: str, device: str = "cpu") -> AIModel:
     Recommended models:
     - "google/flan-t5-small" - Fast, good for CPU (80M params)
     - "google/flan-t5-base" - Balanced (250M params)
-    - "google/flan-t5-large" - Better quality (780M params, needs GPU)
+    - "google/flan-t5-large" - Better quality (780M params, needs GPU or good CPU)
     - "gpt2" - Alternative causal LM (124M params)
     - "gpt2-medium" - Larger GPT-2 (355M params)
     """
@@ -181,4 +183,4 @@ def get_recommended_model(device: str = "cpu") -> str:
     if device == "cuda":
         return "google/flan-t5-large"  # Better model for GPU
     else:
-        return "google/flan-t5-base"  # Good balance for CPU
+        return "google/flan-t5-base"  # Lightweight model (250MB) for CPU to save storage

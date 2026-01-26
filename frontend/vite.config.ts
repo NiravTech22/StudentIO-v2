@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [react()],
-    base: '/StudentIO-v2/', // Change this to your repo name for GitHub Pages
+    base: '/', // Changed to root for Docker/Localhost deployment
     build: {
         outDir: 'dist',
         sourcemap: true,

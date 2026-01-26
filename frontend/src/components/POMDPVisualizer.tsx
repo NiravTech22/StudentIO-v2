@@ -17,9 +17,7 @@ interface StateData {
 
 export default function POMDPVisualizer({ sessionId, apiUrl }: Props) {
     const [trajectory, setTrajectory] = useState<StateData[]>([]);
-    const [currentStep, setCurrentStep] = useState<any>(null);
     const [diagnostics, setDiagnostics] = useState<any>(null);
-    const [config, setConfig] = useState<any>(null);
 
     useEffect(() => {
         const fetchHistory = async () => {

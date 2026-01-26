@@ -1,7 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Activity, Zap, Server, Cpu } from 'lucide-react';
-import { ChatInterface } from '../frontend/ChatInterface';
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Brain, Server, Cpu } from 'lucide-react';
+import ChatInterface from './components/ChatInterface';
 import { API_BASE_URL } from './api_client';
 
 // ============================================================================
@@ -84,7 +84,7 @@ export default function StudentIODashboard() {
   const [error, setError] = useState<string | null>(null);
 
   // Dummy student ID for the chat interface - the backend now ignores it but the component requires it
-  const DUMMY_STUDENT = 1;
+  const DUMMY_STUDENT = "1";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -152,7 +152,7 @@ export default function StudentIODashboard() {
 
         {/* Right: Chat Interface */}
         <div className="lg:w-[450px] shrink-0 h-[600px] lg:h-auto flex flex-col">
-          <ChatInterface studentId={DUMMY_STUDENT} />
+          <ChatInterface studentId={DUMMY_STUDENT} apiUrl={API_BASE_URL} />
         </div>
 
       </div>

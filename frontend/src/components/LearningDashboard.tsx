@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Brain, Clock, Target, Award, Zap } from 'lucide-react';
+import { TrendingUp, Brain, Target, Award, Zap } from 'lucide-react';
 
 interface Props {
     studentId: string;

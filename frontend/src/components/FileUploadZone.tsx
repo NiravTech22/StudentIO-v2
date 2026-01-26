@@ -19,7 +19,6 @@ interface Props {
 export default function FileUploadZone({ studentId, apiUrl }: Props) {
     const [files, setFiles] = useState<UploadedFile[]>([]);
     const [isDragging, setIsDragging] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -40,7 +39,7 @@ export default function FileUploadZone({ studentId, apiUrl }: Props) {
         }));
 
         setFiles(prev => [...prev, ...newFiles]);
-        setIsUploading(true);
+        setFiles(prev => [...prev, ...newFiles]);
 
         const formData = new FormData();
         Array.from(fileList).forEach(file => {
@@ -76,8 +75,6 @@ export default function FileUploadZone({ studentId, apiUrl }: Props) {
                     ? { ...f, status: 'error', error: 'Upload failed' }
                     : f
             ));
-        } finally {
-            setIsUploading(false);
         }
     };
 
@@ -92,7 +89,7 @@ export default function FileUploadZone({ studentId, apiUrl }: Props) {
 
     const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-      upload Files(e.target.files);
+            uploadFiles(e.target.files);
         }
     };
 

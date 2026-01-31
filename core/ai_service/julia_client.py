@@ -25,13 +25,13 @@ class JuliaClient:
         # Create new session
         try:
             async with aiohttp.ClientSession() as session:
-                payload = {"student_id": student_id}
-                async with session.post(f"{self.base_url}/api/session/create", json=payload) as resp:
+                payload = {"studentId": student_id}
+                async with session.post(f"{self.base_url}/session/start", json=payload) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        self.session_map[student_id] = data["session_id"]
-                        logger.info(f"Created Julia session for {student_id}: {data['session_id']}")
-                        return data["session_id"]
+                        self.session_map[student_id] = data["sessionId"]
+                        logger.info(f"Created Julia session for {student_id}: {data['sessionId']}")
+                        return data["sessionId"]
                     else:
                         logger.error(f"Failed to create Julia session: {await resp.text()}")
                         return ""
@@ -43,19 +43,24 @@ class JuliaClient:
         """
         Send interaction data to Julia and get the next optimal pedagogical action.
         """
-        session_id = await self.get_session(student_id)
-        if not session_id:
-            return {}
+        # Ensure session exists
+        if student_id not in self.session_map:
+            await self.get_session(student_id)
 
         observation = {
             "correctness": correctness,
             "confidence": confidence,
             "response_time": response_time
         }
+        
+        payload = {
+            "studentId": student_id,
+            "interaction": observation
+        }
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(f"{self.base_url}/api/session/{session_id}/step", json=observation) as resp:
+                async with session.post(f"{self.base_url}/session/step", json=payload) as resp:
                     if resp.status == 200:
                         return await resp.json()
                     else:

@@ -66,16 +66,22 @@ end
     interaction = get(data, "interaction", Dict())
 
     # Real Julia Logic: Update Belief State (Particle Filter / GRU)
-    # action = StudentIO.step!(session, interaction)
+    action = StudentIO.step!(session, interaction)
 
-    # For this specific demo, we'll verify the inputs and return structured reasoning
-    # This proves Julia is running code, not just echoing.
+    # Retrieve rationale from session history
+    rationale = "No rationale available."
+    if !isempty(session.history)
+        hist_item = last(session.history)
+        if haskey(hist_item, :rationale)
+            rationale = hist_item.rationale
+        end
+    end
 
     belief = StudentIO.get_belief_state(session)
 
     return Dict(
-        "action" => "explain_concept",
-        "rationale" => "Student uncertainty is high ($(belief.uncertainty)). Switching to explanatory mode.",
+        "action" => action,
+        "rationale" => rationale,
         "belief_dim" => length(belief.belief),
         "uncertainty" => belief.uncertainty
     )

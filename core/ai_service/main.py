@@ -414,6 +414,9 @@ async def submit_feedback(
 # Helper Functions
 # ============================================================================
 
+
+from system_prompt import STUDENTIO_SYSTEM_PROMPT
+
 def build_prompt(
     question: str,
     context: List[str],
@@ -424,21 +427,43 @@ def build_prompt(
     """Build an optimized prompt based on student's learning style"""
     style = student_profile.get("style", "balanced")
     
-    # Simplified Zero-Shot Chain of Thought Prompt
-    # This format is proven to work best with FLAN-T5
-    
-    prompt_parts = []
+    # Start with the absolute system prompt
+    prompt_parts = [STUDENTIO_SYSTEM_PROMPT]
     
     if context:
-        prompt_parts.append(f"Context: {' '.join(context[:2])}")
+        prompt_parts.append(f"\nContext Information:\n{' '.join(context[:2])}")
     
-    # Simple, direct instruction
-    prompt_parts.append(f"Question: {question}")
-    prompt_parts.append(f"Instruction: Let's think step by step to answer the question correctly.")
-    prompt_parts.append("Answer:")
+    if history:
+        prompt_parts.append("\nConversation History:")
+        for msg in history[-3:]: # Limit to last 3 turns
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            prompt_parts.append(f"{role.capitalize()}: {content}")
+            
+    # Incorporate Julia POMDP Action guidance if available
+    if julia_action:
+        instruction = "\nPedagogical Instruction:"
+        action_type = julia_action.get("type", "EXPLAIN")
+        difficulty = julia_action.get("difficulty", 0.5)
+        
+        if action_type == "HINT":
+            instruction += " Provide a helpful hint rather than the full solution."
+        elif action_type == "TESTING":
+            instruction += " After explaining, ask a follow-up question to test understanding."
+        
+        if difficulty > 0.7:
+            instruction += " Use advanced terminology and go into depth."
+        elif difficulty < 0.3:
+            instruction += " Keep it very simple and beginner-friendly."
+            
+        prompt_parts.append(instruction)
+
+    # User Question
+    prompt_parts.append(f"\nUser Question: {question}")
+    prompt_parts.append("\nAnswer:")
     
     full_prompt = "\n".join(prompt_parts)
-    print(f"📝 FINAL PROMPT:\n{full_prompt}\n-------------------")
+    print(f"📝 FINAL PROMPT LENGTH: {len(full_prompt)}")
     return full_prompt
 
     # Incorporate Julia POMDP Action

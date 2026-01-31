@@ -30,7 +30,7 @@ Start-Sleep -Seconds 2
 
 # 3. Start Julia Backend (Port 8080)
 Write-Host "Starting Julia (8080)..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "julia --project=. -e 'using StudentIO; StudentIO.start_server()'" -WorkingDirectory "$PWD"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "julia --project=. server.jl" -WorkingDirectory "$PWD\core\julia_service"
 Start-Sleep -Seconds 2
 
 # 4. Start React Frontend (Port 5173)

@@ -9,3 +9,9 @@ The failure scenarios identified by the framework are used to evaluate policy ro
 The primary objective of the project is to uncover high-impact, structured failure scenarios using generative and adversarial methods. These learned scenarios allow autonomous policies to be stress-tested beyond naive randomization, exposing blind spots and fragile behaviors. In addition, failure modes are analyzed and clustered in latent space to improve interpretability and provide insight into the mechanisms underlying system failures. Finally, the framework leverages these insights to train recovery behaviors and robustness mechanisms, with the goal of producing more resilient autonomous systems.
 
 Modern autonomous systems can perform well under nominal conditions while remaining vulnerable to rare or structured edge cases. Latent Failure frames robustness testing as a learning problem, enabling researchers to systematically identify and address the weakest behaviors before deployment. This framework serves as a testbed for research in failure-aware autonomy, resilient control, and safety-critical robotics.
+
+The latent failure project is built on three models: 
+1. World Model => its job: "If I take action uT in state xT, what happens next?"
+2. Failure Predictor => its job: "If I continue like this, will I be able to successfully complete the task?"
+3. Policy Model => its job: hesistate when uncertain and fall back to different decision scenarios created prior to diving into the required task (I.e. I can do this task X different ways), which similar to human task execution:
+Start Task -> Failing -> Reiterate -> New Solution -> Goal Achieved

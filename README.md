@@ -1,4 +1,6 @@
-# Latent Failure: Discovering and Exploiting Failure Manifolds in Autonomous Robotics
+# Latent Failure: 
+
+Discovering and Exploiting Failure Manifolds in Autonomous Robotics
 
 Latent Failure is a research framework for systematically discovering, modeling, and exploiting failure modes in autonomous robotic systems. Unlike conventional approaches that rely on random domain variations or handcrafted stress tests, this project focuses on learning latent failure manifolds. These are structured regions of the state, observation, and dynamics space where autonomous policies exhibit brittle behavior. By identifying these regions, it is possible to reveal weaknesses in perception, control, and recovery pipelines that are difficult to detect through standard testing.
 

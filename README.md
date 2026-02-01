@@ -1,4 +1,4 @@
-# Latent Failure: 
+# Latent Failure
 
 Discovering and Exploiting Failure Manifolds in Autonomous Robotics
 
